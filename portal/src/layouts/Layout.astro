@@ -1,0 +1,42 @@
+---
+import '../styles/global.css';
+import Head from '../components/Head.astro';
+import Nav from '../components/Nav.astro';
+
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  imagen?: string;
+}
+
+const { titulo, descripcion, imagen } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <Head titulo={titulo} descripcion={descripcion} imagen={imagen} />
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <slot />
+    </main>
+
+    <script>
+      function mezclarLogos(id: string) {
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const logo = wrap.querySelector('.logo-ciclico');
+        if (!logo) return;
+        const imgs = [...logo.querySelectorAll('img')];
+        for (let i = imgs.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          logo.appendChild(imgs[j]);
+          [imgs[i], imgs[j]] = [imgs[j], imgs[i]];
+        }
+      }
+      mezclarLogos('logo-nav');
+    </script>
+  </body>
+</html>

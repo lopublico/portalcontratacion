@@ -1,0 +1,38 @@
+---
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  imagen?: string;
+}
+
+const {
+  titulo = 'Lo Público',
+  descripcion = 'Datos abiertos de contratación pública en España.',
+  imagen = '/og-default.png',
+} = Astro.props;
+
+const tituloPagina = titulo === 'Lo Público' ? titulo : `${titulo} · Lo Público`;
+const url = Astro.url;
+---
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content={descripcion} />
+
+<meta property="og:type" content="website" />
+<meta property="og:url" content={url} />
+<meta property="og:title" content={tituloPagina} />
+<meta property="og:description" content={descripcion} />
+<meta property="og:image" content={imagen} />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={tituloPagina} />
+<meta name="twitter:description" content={descripcion} />
+<meta name="twitter:image" content={imagen} />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@400;500&family=Lora:wght@400;500;600;700&display=swap" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+<title>{tituloPagina}</title>

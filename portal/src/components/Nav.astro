@@ -1,0 +1,107 @@
+---
+import LogoCiclico from './LogoCiclico.astro';
+
+---
+
+<header class="site-header">
+  <div class="header-inner">
+
+    <a href="/" class="site-logo-link" id="logo-nav">
+      <div class="tool-title-row">
+        <LogoCiclico />
+        <div class="tool-title-text">
+          <span class="tool-title-name">Portal de Contratación Pública</span>
+          <span class="tool-title-parent">Lo público</span>
+        </div>
+      </div>
+    </a>
+
+    <div class="header-right">
+      <a href="/contratos" class="header-link">Contratos</a>
+      <a href="/organismos" class="header-link">Organismos</a>
+      <a href="/adjudicatarios" class="header-link">Empresas</a>
+      <a href="/datos" class="header-link">Datos</a>
+      <a href="/api/docs" class="header-link" target="_blank" rel="noopener">API ↗</a>
+    </div>
+
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--color-borde);
+    background: var(--color-fondo);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    max-width: 1320px;
+    padding: 16px 48px;
+    margin: 0 auto;
+  }
+
+  .site-logo-link {
+    flex: 1;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .tool-title-row {
+    gap: 12px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tool-title-text {
+    height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-left: 12px;
+    border-left: 1px solid #d4d4d4;
+  }
+
+  .tool-title-name {
+    color: var(--color-texto);
+    font-size: 22px;
+    font-weight: 600;
+    font-family: 'Geist', sans-serif;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .tool-title-parent {
+    color: #6f6f6f;
+    font-size: 15px;
+    font-style: italic;
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  .header-right {
+    gap: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .header-link {
+    color: var(--color-texto-suave);
+    font-size: var(--texto-sm);
+    padding: 5px 10px;
+    text-decoration: none;
+    border-radius: 4px;
+    white-space: nowrap;
+    transition: color 0.12s, background 0.12s;
+  }
+
+  .header-link:hover { background: #f4f4f5; color: var(--color-texto); }
+
+
+</style>

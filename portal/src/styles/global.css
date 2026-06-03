@@ -1,0 +1,53 @@
+:root {
+  --color-texto: #111111;
+  --color-texto-suave: #6b7280;
+  --color-borde: #e5e7eb;
+  --color-fondo: #ffffff;
+
+  --texto-sm: 0.875rem;
+  --texto-base: 1rem;
+  --texto-lg: 1.125rem;
+  --texto-xl: 1.25rem;
+  --texto-2xl: 1.5rem;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  color: var(--color-texto);
+  font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--texto-base);
+  background: var(--color-fondo);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  width: 100%;
+  max-width: 1152px;
+  flex: 1;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+a { color: inherit; }
+img { display: block; max-width: 100%; }
+
+h1 {
+  font-weight: 600;
+  font-size: var(--texto-2xl);
+  margin-bottom: 0.5rem;
+}
+
+p {
+  color: var(--color-texto-suave);
+}
