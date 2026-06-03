@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+venv/
+api/.env
+etl/data/raw/
+etl/data/processed/*
+!etl/data/processed/contratos.parquet
+etl/logs/
+portal/node_modules/
+portal/dist/
+portal/.astro/
+.DS_Store
