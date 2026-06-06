@@ -10,6 +10,7 @@ Docs:
 """
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 import re
@@ -78,6 +79,42 @@ def raiz():
         "tipos": sorted(TIPOS_VALIDOS),
         "docs": "/docs",
     }
+
+
+# --- estadisticas ---
+
+@app.get("/estadisticas", tags=["Estadísticas"])
+def estadisticas(tipo: Optional[str] = Query(None)):
+    _verificar_datos()
+    _validar_tipo(tipo)
+    return db.estadisticas_generales(tipo)
+
+
+@app.get("/estadisticas/anual", tags=["Estadísticas"])
+def estadisticas_anual(tipo: Optional[str] = Query(None)):
+    _verificar_datos()
+    _validar_tipo(tipo)
+    return db.estadisticas_por_anno(tipo)
+
+
+@app.get("/estadisticas/mensual", tags=["Estadísticas"])
+def estadisticas_mensual(
+    tipo: Optional[str] = Query(None),
+    anno: int = Query(default_factory=lambda: datetime.now().year),
+):
+    _verificar_datos()
+    _validar_tipo(tipo)
+    return db.estadisticas_por_mes(tipo, anno)
+
+
+@app.get("/estadisticas/cpv", tags=["Estadísticas"])
+def estadisticas_cpv(
+    tipo: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=200),
+):
+    _verificar_datos()
+    _validar_tipo(tipo)
+    return db.estadisticas_cpv(tipo, limit)
 
 
 # --- contratos ---

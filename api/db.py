@@ -329,3 +329,93 @@ def perfil_adjudicatario(id: str) -> Optional[Dict]:
         "por_anno": por_anno,
         "principales_organismos": principales_organismos,
     }
+
+
+# --- estadisticas ---
+
+def estadisticas_generales(tipo: Optional[str]) -> Dict:
+    # 1=1 evita tener que ramificar el WHERE segun haya filtro o no
+    cond = f"tipo = '{tipo}'" if tipo else "1=1"
+
+    por_tipo = _filas(f"""
+        SELECT tipo, COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE {cond}
+        GROUP BY tipo ORDER BY num_contratos DESC
+    """)
+
+    top_organismos = _filas(f"""
+        SELECT organo_nombre, organo_id_plataforma,
+               COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE {cond} AND organo_nombre IS NOT NULL
+        GROUP BY organo_nombre, organo_id_plataforma
+        ORDER BY num_contratos DESC LIMIT 5
+    """)
+
+    top_adjudicatarios = _filas(f"""
+        SELECT mode(adjudicatario_nombre) AS adjudicatario_nombre,
+               adjudicatario_id,
+               COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE {cond} AND adjudicatario_id IS NOT NULL
+        GROUP BY adjudicatario_id
+        ORDER BY total_adjudicado DESC NULLS LAST LIMIT 5
+    """)
+
+    pyme = _filas(f"""
+        SELECT adjudicado_pyme, COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE {cond} AND adjudicado_pyme IS NOT NULL
+        GROUP BY adjudicado_pyme
+    """)
+
+    return {
+        "por_tipo": por_tipo,
+        "top_organismos": top_organismos,
+        "top_adjudicatarios": top_adjudicatarios,
+        "pyme": pyme,
+    }
+
+
+def estadisticas_por_anno(tipo: Optional[str]) -> List[Dict]:
+    cond = f"AND tipo = '{tipo}'" if tipo else ""
+    return _filas(f"""
+        SELECT YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) AS anno,
+               COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE fecha_adjudicacion IS NOT NULL {cond}
+        GROUP BY anno ORDER BY anno
+    """)
+
+
+def estadisticas_por_mes(tipo: Optional[str], anno: int) -> List[Dict]:
+    cond = f"AND tipo = '{tipo}'" if tipo else ""
+    return _filas(f"""
+        SELECT MONTH(TRY_CAST(fecha_adjudicacion AS DATE)) AS mes,
+               COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) = {anno}
+          AND fecha_adjudicacion IS NOT NULL {cond}
+        GROUP BY mes ORDER BY mes
+    """)
+
+
+def estadisticas_cpv(tipo: Optional[str], limit: int) -> List[Dict]:
+    cond = f"AND tipo = '{tipo}'" if tipo else ""
+    # unnest expande el array de cpv para poder agrupar por codigo individual
+    return _filas(f"""
+        SELECT unnest(codigos_cpv) AS cpv,
+               COUNT(*) AS num_contratos,
+               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE codigos_cpv IS NOT NULL {cond}
+        GROUP BY cpv ORDER BY num_contratos DESC
+        LIMIT {limit}
+    """)
