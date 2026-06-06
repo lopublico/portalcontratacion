@@ -1,3 +1,4 @@
+# Mapeo de campos basado en el estándar CODICE (Ministerio de Hacienda).
 import os
 from typing import List, Dict, Optional, Any
 from lxml import etree
@@ -294,54 +295,43 @@ class ParserATOM:
 
     def _extraer_encargo(self, codice: etree.Element) -> Dict:
         datos = {}
-        datos['num_expediente'] = self._get_text(codice, 'cbc:ID')
-        datos['estado'] = self._get_text(codice, 'cbc-place-ext:EncargoProcedureStatusCode')
-        datos['objeto'] = self._get_text(codice, 'cbc:Name')
-        datos['descripcion'] = self._get_text(codice, 'cbc:Description')
-        datos['tipo_encargo'] = self._get_text(codice, 'cbc:TypeCode')
-        v = self._get_text(codice, 'cbc:TotalAmount')
-        datos['importe'] = float(v) if v else None
+        datos['num_expediente'] = self._get_text(codice, 'cbc:ContractFolderID')
+        datos['estado'] = self._get_text(codice, 'cbc-place-ext:ContractFolderStatusCode')
+        datos.update(self._extraer_organo_contratacion(codice))
 
-        ordering = codice.find('cac:OrderingParty', self.NAMESPACES)
-        if ordering is not None:
-            party = ordering.find('cac:Party', self.NAMESPACES)
-            if party is not None:
-                datos['organo_encomendante_nombre'] = self._get_text(party, 'cac:PartyName/cbc:Name')
-                for id_elem in party.findall('cac:PartyIdentification/cbc:ID', self.NAMESPACES):
-                    if id_elem.get('schemeName') == 'NIF':
-                        datos['organo_encomendante_nif'] = id_elem.text
-                        break
+        proyecto = codice.find('cac:ProcurementProject', self.NAMESPACES)
+        if proyecto is not None:
+            datos['objeto'] = self._get_text(proyecto, 'cbc:Name')
+            datos['tipo_encargo'] = self._get_text(proyecto, 'cbc:TypeCode')
+            v = self._get_text(proyecto, 'cac:BudgetAmount/cbc:TotalAmount')
+            datos['importe'] = float(v) if v else None
+            cpv_codes = proyecto.findall('.//cac:RequiredCommodityClassification/cbc:ItemClassificationCode', self.NAMESPACES)
+            if cpv_codes:
+                datos['codigos_cpv'] = [c.text for c in cpv_codes if c.text]
 
-        proprietary = codice.find('cac:ProprietaryMeans', self.NAMESPACES)
-        if proprietary is not None:
-            party = proprietary.find('cac:Party', self.NAMESPACES)
-            if party is not None:
-                datos['medio_propio_nombre'] = self._get_text(party, 'cac:PartyName/cbc:Name')
-                for id_elem in party.findall('cac:PartyIdentification/cbc:ID', self.NAMESPACES):
+        resultado = codice.find('cac:TenderResult', self.NAMESPACES)
+        if resultado is not None:
+            datos['fecha_adjudicacion'] = self._get_text(resultado, 'cbc:AwardDate')
+            winner = resultado.find('cac:WinningParty', self.NAMESPACES)
+            if winner is not None:
+                datos['medio_propio_nombre'] = self._get_text(winner, 'cac:PartyName/cbc:Name')
+                for id_elem in winner.findall('cac:PartyIdentification/cbc:ID', self.NAMESPACES):
                     if id_elem.get('schemeName') == 'NIF':
                         datos['medio_propio_nif'] = id_elem.text
                         break
 
-        datos['fecha_inicio'] = self._get_text(codice, 'cbc:StartDate')
-        datos['fecha_fin'] = self._get_text(codice, 'cbc:EndDate')
+        datos.update(self._extraer_info_publicacion(codice))
         return datos
 
     def _extraer_consulta(self, codice: etree.Element) -> Dict:
-        # consultas preliminares: no son contratos, reutilizamos metodos de licitaciones
         datos = {}
-        datos['num_expediente'] = self._get_text(codice, 'cbc:ContractFolderID')
-        datos['estado'] = self._get_text(codice, 'cbc-place-ext:ContractFolderStatusCode')
-        datos['objeto'] = self._get_text(codice, 'cbc:Name')
-        datos['descripcion'] = self._get_text(codice, 'cbc:Description')
+        datos['num_expediente'] = self._get_text(codice, 'cbc:PreliminaryMarketConsultationID')
+        datos['estado'] = self._get_text(codice, 'cbc-place-ext:PreliminaryMarketConsultationStatusCode')
+        datos['objeto'] = self._get_text(codice, 'cbc:ConsultationName')
+        datos['descripcion'] = self._get_text(codice, 'cbc:ConditionsText')
         datos.update(self._extraer_organo_contratacion(codice))
-        cpv_codes = codice.findall('.//cac:RequiredCommodityClassification/cbc:ItemClassificationCode', self.NAMESPACES)
-        if cpv_codes:
-            datos['codigos_cpv'] = [c.text for c in cpv_codes if c.text]
-        period = codice.find('.//cac:PlannedPeriod', self.NAMESPACES)
-        if period is not None:
-            datos['fecha_inicio'] = self._get_text(period, 'cbc:StartDate')
-            datos['fecha_fin'] = self._get_text(period, 'cbc:EndDate')
-        datos.update(self._extraer_info_publicacion(codice))
+        datos['fecha_inicio'] = self._get_text(codice, 'cbc:PlannedDate')
+        datos['fecha_fin'] = self._get_text(codice, 'cbc:LimitDate')
         return datos
 
     def _extraer_licitacion_contrato(self, codice: etree.Element, tipo: str) -> Dict:
