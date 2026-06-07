@@ -2,7 +2,7 @@
 import os
 from typing import List, Dict, Optional, Any
 from lxml import etree
-from dateutil import parser as dateutil_parser
+from datetime import datetime
 import glob
 import re
 
@@ -35,7 +35,11 @@ class ParserATOM:
         if not fecha_str:
             return None
         try:
-            return dateutil_parser.parse(fecha_str).strftime('%Y-%m-%d %H:%M:%S')
+            if 'T' in fecha_str:
+                fecha_limpia = fecha_str.replace('Z', '').split('+')[0].split('.')[0]
+                dt = datetime.fromisoformat(fecha_limpia)
+                return dt.strftime('%Y-%m-%d %H:%M:%S')
+            return fecha_str
         except Exception:
             return fecha_str
 
@@ -385,7 +389,7 @@ class ParserATOM:
         periodo = match_periodo.group(1) if match_periodo else None
 
         try:
-            tree = etree.parse(ruta_archivo)
+            tree = etree.parse(ruta_archivo, etree.XMLParser(recover=True))
             root = tree.getroot()
             entries = root.findall('atom:entry', self.NAMESPACES)
             registros = []
