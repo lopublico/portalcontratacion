@@ -3,6 +3,8 @@ __pycache__/
 venv/
 api/.env
 etl/data/raw/
+etl/data/processed/
+!etl/data/processed/contratos.parquet
 etl/logs/
 portal/node_modules/
 portal/dist/

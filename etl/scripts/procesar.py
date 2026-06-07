@@ -2,9 +2,9 @@
 Procesa todos los tipos y exporta los datos.
 
 Uso:
-    python scripts/procesar_todo.py
-    python scripts/procesar_todo.py --parquet
-    python scripts/procesar_todo.py --sin-deduplicar --parquet
+    python scripts/procesar.py
+    python scripts/procesar.py --parquet
+    python scripts/procesar.py --sin-deduplicar --parquet
 """
 
 import argparse
