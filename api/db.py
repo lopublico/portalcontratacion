@@ -337,9 +337,11 @@ def estadisticas_generales(tipo: Optional[str]) -> Dict:
     # 1=1 evita tener que ramificar el WHERE segun haya filtro o no
     cond = f"tipo = '{tipo}'" if tipo else "1=1"
 
+    # los encargos no tienen importe_adjudicacion_sin_iva; usan el campo 'importe' del feed ATOM
+    # sin el COALESCE aparecen con total_adjudicado null aunque tienen importe real
     por_tipo = _filas(f"""
         SELECT tipo, COUNT(*) AS num_contratos,
-               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
         WHERE {cond}
         GROUP BY tipo ORDER BY num_contratos DESC
@@ -348,33 +350,38 @@ def estadisticas_generales(tipo: Optional[str]) -> Dict:
     top_organismos = _filas(f"""
         SELECT organo_nombre, organo_id_plataforma,
                COUNT(*) AS num_contratos,
-               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
         WHERE {cond} AND organo_nombre IS NOT NULL
         GROUP BY organo_nombre, organo_id_plataforma
-        ORDER BY num_contratos DESC LIMIT 5
-    """)
-
-    top_adjudicatarios = _filas(f"""
-        SELECT mode(adjudicatario_nombre) AS adjudicatario_nombre,
-               adjudicatario_id,
-               COUNT(*) AS num_contratos,
-               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
-        FROM read_parquet('{PARQUET}')
-        WHERE {cond} AND adjudicatario_id IS NOT NULL
-        GROUP BY adjudicatario_id
         ORDER BY total_adjudicado DESC NULLS LAST LIMIT 5
     """)
 
+    # agrupamos por nif en vez de por id interno — el nif es el identificador publico
+    # que usamos para construir la url del perfil en el portal
+    top_adjudicatarios = _filas(f"""
+        SELECT mode(adjudicatario_nombre) AS adjudicatario_nombre,
+               mode(adjudicatario_nif) AS adjudicatario_nif,
+               COUNT(*) AS num_contratos,
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE {cond} AND adjudicatario_nif IS NOT NULL
+        GROUP BY adjudicatario_nif
+        ORDER BY total_adjudicado DESC NULLS LAST LIMIT 5
+    """)
+
+    total = _escalar(f"SELECT COUNT(*) FROM read_parquet('{PARQUET}') WHERE {cond}")
+
     pyme = _filas(f"""
         SELECT adjudicado_pyme, COUNT(*) AS num_contratos,
-               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
         WHERE {cond} AND adjudicado_pyme IS NOT NULL
         GROUP BY adjudicado_pyme
     """)
 
     return {
+        "total": total,
         "por_tipo": por_tipo,
         "top_organismos": top_organismos,
         "top_adjudicatarios": top_adjudicatarios,
@@ -384,13 +391,16 @@ def estadisticas_generales(tipo: Optional[str]) -> Dict:
 
 def estadisticas_por_anno(tipo: Optional[str]) -> List[Dict]:
     cond = f"AND tipo = '{tipo}'" if tipo else ""
+    # tipo en el GROUP BY permite filtrar la serie temporal por licitaciones/menores/encargos
+    # sin el, el portal solo puede mostrar el agregado global
     return _filas(f"""
         SELECT YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) AS anno,
+               tipo,
                COUNT(*) AS num_contratos,
-               SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
         WHERE fecha_adjudicacion IS NOT NULL {cond}
-        GROUP BY anno ORDER BY anno
+        GROUP BY anno, tipo ORDER BY anno, tipo
     """)
 
 
@@ -418,4 +428,34 @@ def estadisticas_cpv(tipo: Optional[str], limit: int) -> List[Dict]:
         WHERE codigos_cpv IS NOT NULL {cond}
         GROUP BY cpv ORDER BY num_contratos DESC
         LIMIT {limit}
+    """)
+
+
+def sectores_cpv() -> List[Dict]:
+    # los CPV tienen 8 digitos; los dos primeros identifican la division (categoria grande)
+    # estadisticas_cpv() devuelve codigos completos — esta funcion agrupa a nivel de division
+    # para el grafico de sectores del dashboard, donde los codigos completos son demasiado granulares
+    return _filas(f"""
+        SELECT SUBSTR(cpv, 1, 2) AS division, COUNT(*) AS num_contratos
+        FROM (
+            SELECT UNNEST(codigos_cpv) AS cpv
+            FROM read_parquet('{PARQUET}')
+            WHERE codigos_cpv IS NOT NULL
+        )
+        GROUP BY division
+        ORDER BY num_contratos DESC
+    """)
+
+
+def estadisticas_tipo_contrato() -> List[Dict]:
+    # tipo_contrato es el codigo CODICE: 1=Obras, 2=Servicios, 3=Suministros...
+    # el portal lo usa para el grafico de barras horizontales del dashboard
+    return _filas(f"""
+        SELECT tipo_contrato,
+               COUNT(*) AS num_contratos,
+               SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
+        FROM read_parquet('{PARQUET}')
+        WHERE tipo_contrato IS NOT NULL
+        GROUP BY tipo_contrato
+        ORDER BY num_contratos DESC
     """)

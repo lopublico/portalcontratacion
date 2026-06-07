@@ -35,7 +35,7 @@ def _validar_fecha(valor: Optional[str], nombre: str) -> None:
 async def lifespan(app: FastAPI):
     if not db.parquet_disponible():
         print(f"parquet no encontrado: {db.PARQUET}")
-        print("ejecuta: python ../etl/scripts/procesar_todo.py --parquet")
+        print("ejecuta: python ../etl/scripts/procesar.py --parquet")
     yield
 
 
@@ -60,7 +60,7 @@ DIR_DATOS = Path(db.PARQUET).parent
 
 def _verificar_datos():
     if not db.parquet_disponible():
-        raise HTTPException(status_code=503, detail="Datos no disponibles. Ejecuta procesar_todo.py --parquet")
+        raise HTTPException(status_code=503, detail="Datos no disponibles. Ejecuta procesar.py --parquet")
 
 
 def _validar_tipo(tipo: Optional[str]):
@@ -115,6 +115,18 @@ def estadisticas_cpv(
     _verificar_datos()
     _validar_tipo(tipo)
     return db.estadisticas_cpv(tipo, limit)
+
+
+@app.get("/estadisticas/sectores-cpv", tags=["Estadísticas"])
+def estadisticas_sectores_cpv():
+    _verificar_datos()
+    return db.sectores_cpv()
+
+
+@app.get("/estadisticas/tipo-contrato", tags=["Estadísticas"])
+def estadisticas_tipo_contrato():
+    _verificar_datos()
+    return db.estadisticas_tipo_contrato()
 
 
 # --- contratos ---
