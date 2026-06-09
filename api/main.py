@@ -180,7 +180,16 @@ def listar_contratos(
     )
 
 
-@app.get("/contratos/{num_expediente}", tags=["Contratos"])
+@app.get("/contratos/atom/{atom_num}", tags=["Contratos"])
+def obtener_contrato_por_atom(atom_num: str):
+    _verificar_datos()
+    resultado = db.obtener_contrato_por_atom(atom_num)
+    if not resultado:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+    return resultado
+
+
+@app.get("/contratos/{num_expediente:path}", tags=["Contratos"])
 def obtener_contrato(num_expediente: str):
     _verificar_datos()
     resultados = db.obtener_contrato(num_expediente)

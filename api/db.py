@@ -24,13 +24,23 @@ def parquet_disponible() -> bool:
     return Path(PARQUET).exists()
 
 
+_FECHA_SQL = "TRY_CAST(fecha_adjudicacion AS DATE)"
+
+
 def _filas(sql: str, params: Optional[list] = None) -> List[Dict]:
-    """ejecuta sql y devuelve lista de dicts"""
+    import numpy as np
+    import math
     with duckdb.connect() as conn:
         df = conn.execute(sql, params or []).df()
-    # reemplazar NaN por None para que json lo serialice como null
     df = df.where(pd.notna(df), None)
-    return df.to_dict("records")
+    records = df.to_dict("records")
+    for rec in records:
+        for k, v in rec.items():
+            if isinstance(v, np.ndarray):
+                rec[k] = v.tolist()
+            elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                rec[k] = None
+    return records
 
 
 def _escalar(sql: str, params: Optional[list] = None):
@@ -42,8 +52,8 @@ def _escalar(sql: str, params: Optional[list] = None):
 # --- contratos ---
 
 _ORDENES_SQL = {
-    "fecha_desc":       "fecha_adjudicacion DESC NULLS LAST",
-    "fecha_asc":        "TRY_CAST(fecha_adjudicacion AS DATE) ASC NULLS LAST",
+    "fecha_desc":       f"({_FECHA_SQL}) DESC NULLS LAST",
+    "fecha_asc":        f"({_FECHA_SQL}) ASC NULLS LAST",
     "importe_desc":     "importe_adjudicacion_sin_iva DESC NULLS LAST",
     "importe_asc":      "importe_adjudicacion_sin_iva ASC NULLS LAST",
     "presupuesto_desc": "presupuesto_sin_iva DESC NULLS LAST",
@@ -55,7 +65,9 @@ def listar_contratos(
     tipo_contrato, anno, cpv, estado, pyme, importe_min, importe_max,
     fecha_desde, fecha_hasta, tipo_procedimiento, orden, pagina, por_pagina,
 ) -> Dict:
-    condiciones = []
+    condiciones = [
+        "fecha_adjudicacion IS NULL OR TRY_CAST(fecha_adjudicacion AS DATE) <= CURRENT_DATE"
+    ]
     params: list = []
 
     if tipo:
@@ -120,8 +132,9 @@ def listar_contratos(
             tipo_contrato, tipo_procedimiento,
             presupuesto_sin_iva, importe_adjudicacion_sin_iva,
             adjudicatario_nombre, adjudicatario_nif,
-            fecha_adjudicacion, fecha_publicacion, codigos_cpv,
-            medio_propio_nombre, organo_encomendante_nombre
+            fecha_adjudicacion,
+            fecha_publicacion, fecha_actualizacion, codigos_cpv,
+            medio_propio_nombre, id_atom
         FROM read_parquet('{PARQUET}')
         {where}
         ORDER BY {order_sql}
@@ -138,10 +151,19 @@ def listar_contratos(
 
 
 def obtener_contrato(num_expediente: str) -> List[Dict]:
-    return _filas(
+    filas = _filas(
         f"SELECT * FROM read_parquet('{PARQUET}') WHERE num_expediente = ?",
         [num_expediente],
     )
+    return filas
+
+
+def obtener_contrato_por_atom(atom_num: str) -> Optional[Dict]:
+    filas = _filas(
+        f"SELECT * FROM read_parquet('{PARQUET}') WHERE id_atom LIKE '%/' || ?",
+        [atom_num],
+    )
+    return filas[0] if filas else None
 
 
 # --- organismos ---
@@ -168,8 +190,8 @@ def listar_organismos(q: Optional[str], tipo: Optional[str], limit: int, offset:
             organo_id_plataforma, organo_nombre, organo_nif, organo_dir3, organo_tipo,
             COUNT(*) AS num_contratos,
             SUM(importe_adjudicacion_sin_iva) AS total_adjudicado,
-            MIN(TRY_CAST(fecha_adjudicacion AS DATE)) AS primer_contrato,
-            MAX(TRY_CAST(fecha_adjudicacion AS DATE)) AS ultimo_contrato
+            MIN({_FECHA_SQL}) AS primer_contrato,
+            MAX({_FECHA_SQL}) AS ultimo_contrato
         FROM read_parquet('{PARQUET}')
         {where}
         GROUP BY organo_id_plataforma, organo_nombre, organo_nif, organo_dir3, organo_tipo
@@ -190,8 +212,8 @@ def perfil_organismo(id_plataforma: str) -> Optional[Dict]:
             COUNT(*) AS num_contratos,
             SUM(importe_adjudicacion_sin_iva) AS total_adjudicado,
             AVG(importe_adjudicacion_sin_iva) AS importe_medio,
-            MIN(TRY_CAST(fecha_adjudicacion AS DATE)) AS primer_contrato,
-            MAX(TRY_CAST(fecha_adjudicacion AS DATE)) AS ultimo_contrato
+            MIN({_FECHA_SQL}) AS primer_contrato,
+            MAX({_FECHA_SQL}) AS ultimo_contrato
         {base}
         GROUP BY organo_id_plataforma, organo_nombre, organo_nif, organo_dir3,
                  organo_tipo, organo_ciudad, organo_perfil_url
@@ -228,7 +250,8 @@ def perfil_organismo(id_plataforma: str) -> Optional[Dict]:
         SELECT tipo, num_expediente, titulo, objeto, estado,
                tipo_contrato, tipo_procedimiento,
                presupuesto_sin_iva, importe_adjudicacion_sin_iva,
-               adjudicatario_nombre, adjudicatario_nif, fecha_adjudicacion
+               adjudicatario_nombre, adjudicatario_nif, fecha_adjudicacion,
+               id_atom
         {base}
         ORDER BY fecha_adjudicacion DESC NULLS LAST
         LIMIT 10
@@ -265,8 +288,8 @@ def buscar_adjudicatarios(q: Optional[str], limit: int, offset: int) -> Dict:
             mode(adjudicatario_id_tipo) AS adjudicatario_id_tipo,
             COUNT(*) AS num_contratos,
             SUM(importe_adjudicacion_sin_iva) AS total_adjudicado,
-            MIN(TRY_CAST(fecha_adjudicacion AS DATE)) AS primer_contrato,
-            MAX(TRY_CAST(fecha_adjudicacion AS DATE)) AS ultimo_contrato
+            MIN({_FECHA_SQL}) AS primer_contrato,
+            MAX({_FECHA_SQL}) AS ultimo_contrato
         FROM read_parquet('{PARQUET}')
         {where}
         GROUP BY adjudicatario_id
@@ -290,8 +313,8 @@ def perfil_adjudicatario(id: str) -> Optional[Dict]:
             COUNT(*) AS num_contratos,
             SUM(importe_adjudicacion_sin_iva) AS total_adjudicado,
             AVG(importe_adjudicacion_sin_iva) AS importe_medio,
-            MIN(TRY_CAST(fecha_adjudicacion AS DATE)) AS primer_contrato,
-            MAX(TRY_CAST(fecha_adjudicacion AS DATE)) AS ultimo_contrato
+            MIN({_FECHA_SQL}) AS primer_contrato,
+            MAX({_FECHA_SQL}) AS ultimo_contrato
         {base}
         GROUP BY adjudicatario_id
     """, [id])
@@ -411,7 +434,7 @@ def estadisticas_por_mes(tipo: Optional[str], anno: int) -> List[Dict]:
                COUNT(*) AS num_contratos,
                SUM(importe_adjudicacion_sin_iva) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
-        WHERE YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) = {anno}
+        WHERE fecha_adjudicacion IS NOT NULL AND YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) = {anno}
           AND fecha_adjudicacion IS NOT NULL {cond}
         GROUP BY mes ORDER BY mes
     """)
