@@ -38,6 +38,9 @@ class ParserATOM:
             if 'T' in fecha_str:
                 fecha_limpia = fecha_str.replace('Z', '').split('+')[0].split('.')[0]
                 dt = datetime.fromisoformat(fecha_limpia)
+                # PLACSP a veces publica años como "20" en vez de "2020" — lo corregimos
+                if dt.year < 100:
+                    dt = dt.replace(year=dt.year + 2000)
                 return dt.strftime('%Y-%m-%d %H:%M:%S')
             return fecha_str
         except Exception:
