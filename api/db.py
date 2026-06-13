@@ -38,6 +38,8 @@ def _filas(sql: str, params: Optional[list] = None) -> List[Dict]:
         for k, v in rec.items():
             if isinstance(v, np.ndarray):
                 rec[k] = v.tolist()
+            elif v is pd.NaT:
+                rec[k] = None
             elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
                 rec[k] = None
     return records
@@ -66,7 +68,7 @@ def listar_contratos(
     fecha_desde, fecha_hasta, tipo_procedimiento, orden, pagina, por_pagina,
 ) -> Dict:
     condiciones = [
-        "fecha_adjudicacion IS NULL OR TRY_CAST(fecha_adjudicacion AS DATE) <= CURRENT_DATE"
+        "(fecha_adjudicacion IS NULL OR TRY_CAST(fecha_adjudicacion AS DATE) <= CURRENT_DATE)"
     ]
     params: list = []
 
@@ -86,8 +88,9 @@ def listar_contratos(
         condiciones.append("adjudicatario_nif = ?")
         params.append(adjudicatario_nif)
     if adjudicatario_q:
-        condiciones.append("adjudicatario_nombre ILIKE ?")
+        condiciones.append("(adjudicatario_nombre ILIKE ? OR adjudicatario_nif = ?)")
         params.append(f"%{adjudicatario_q}%")
+        params.append(adjudicatario_q)
     if tipo_contrato:
         condiciones.append("tipo_contrato = ?")
         params.append(tipo_contrato)
@@ -148,6 +151,89 @@ def listar_contratos(
         "paginas": max(1, (total + por_pagina - 1) // por_pagina),
         "resultados": registros,
     }
+
+
+def exportar_contratos(
+    tipo: Optional[List[str]], q: Optional[str],
+    organismo_q: Optional[str], adjudicatario_q: Optional[str],
+    tipo_contrato: Optional[List[str]], cpv_sector: Optional[List[str]],
+    estado: Optional[List[str]], importe_min: Optional[float], importe_max: Optional[float],
+    fecha_desde: Optional[str], fecha_hasta: Optional[str],
+    orden: Optional[str], limit: int,
+):
+    condiciones = [
+        "(fecha_adjudicacion IS NULL OR TRY_CAST(fecha_adjudicacion AS DATE) <= CURRENT_DATE)"
+    ]
+    params: list = []
+
+    if tipo:
+        placeholders = ", ".join(["?"] * len(tipo))
+        condiciones.append(f"tipo IN ({placeholders})")
+        params += tipo
+    if q:
+        condiciones.append("(titulo ILIKE ? OR objeto ILIKE ?)")
+        params += [f"%{q}%", f"%{q}%"]
+    if organismo_q:
+        condiciones.append("organo_nombre ILIKE ?")
+        params.append(f"%{organismo_q}%")
+    if adjudicatario_q:
+        condiciones.append("(adjudicatario_nombre ILIKE ? OR adjudicatario_nif = ?)")
+        params.append(f"%{adjudicatario_q}%")
+        params.append(adjudicatario_q)
+    if tipo_contrato:
+        placeholders = ", ".join(["?"] * len(tipo_contrato))
+        condiciones.append(f"tipo_contrato IN ({placeholders})")
+        params += tipo_contrato
+    if cpv_sector:
+        placeholders = ", ".join(["?"] * len(cpv_sector))
+        condiciones.append(
+            f"EXISTS (SELECT 1 FROM UNNEST(codigos_cpv) t(cpv) WHERE SUBSTR(cpv, 1, 2) IN ({placeholders}))"
+        )
+        params += cpv_sector
+    if estado:
+        placeholders = ", ".join(["?"] * len(estado))
+        condiciones.append(f"estado IN ({placeholders})")
+        params += estado
+    if importe_min is not None:
+        condiciones.append("importe_adjudicacion_sin_iva >= ?")
+        params.append(importe_min)
+    if importe_max is not None:
+        condiciones.append("importe_adjudicacion_sin_iva <= ?")
+        params.append(importe_max)
+    if fecha_desde:
+        condiciones.append("TRY_CAST(fecha_adjudicacion AS DATE) >= TRY_CAST(? AS DATE)")
+        params.append(fecha_desde)
+    if fecha_hasta:
+        condiciones.append("TRY_CAST(fecha_adjudicacion AS DATE) <= TRY_CAST(? AS DATE)")
+        params.append(fecha_hasta)
+
+    where = "WHERE " + " AND ".join(condiciones)
+    order_sql = _ORDENES_SQL.get(orden or "fecha_desc", _ORDENES_SQL["fecha_desc"])
+
+    with duckdb.connect() as conn:
+        df = conn.execute(f"""
+            SELECT
+                tipo, num_expediente, titulo, objeto, estado,
+                organo_nombre, organo_nif, organo_id_plataforma,
+                tipo_contrato, tipo_procedimiento,
+                presupuesto_sin_iva, importe_adjudicacion_sin_iva,
+                adjudicatario_nombre, adjudicatario_nif,
+                fecha_adjudicacion, codigos_cpv
+            FROM read_parquet('{PARQUET}')
+            {where}
+            ORDER BY {order_sql}
+            LIMIT {limit}
+        """, params or []).df()
+
+    df = df.where(pd.notna(df), None)
+    # codigos_cpv es una lista; la aplanamos a string para CSV/XLSX
+    if "codigos_cpv" in df.columns:
+        import numpy as np
+        df["codigos_cpv"] = df["codigos_cpv"].apply(
+            lambda v: ", ".join(v.tolist() if isinstance(v, np.ndarray) else v)
+            if v is not None and not (isinstance(v, float) and np.isnan(v)) else ""
+        )
+    return df
 
 
 def obtener_contrato(num_expediente: str) -> List[Dict]:
@@ -371,12 +457,14 @@ def estadisticas_generales(tipo: Optional[str]) -> Dict:
     """)
 
     top_organismos = _filas(f"""
-        SELECT organo_nombre, organo_id_plataforma,
+        SELECT organo_nombre,
+               mode(organo_id_plataforma) FILTER (WHERE organo_id_plataforma IS NOT NULL)
+                   AS organo_id_plataforma,
                COUNT(*) AS num_contratos,
                SUM(COALESCE(importe_adjudicacion_sin_iva, importe)) AS total_adjudicado
         FROM read_parquet('{PARQUET}')
         WHERE {cond} AND organo_nombre IS NOT NULL
-        GROUP BY organo_nombre, organo_id_plataforma
+        GROUP BY organo_nombre
         ORDER BY total_adjudicado DESC NULLS LAST LIMIT 5
     """)
 
