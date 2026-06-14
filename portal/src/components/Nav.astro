@@ -1,6 +1,7 @@
 ---
 import LogoCiclico from './LogoCiclico.astro';
 
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 ---
 
 <header class="site-header">
@@ -21,7 +22,7 @@ import LogoCiclico from './LogoCiclico.astro';
       <a href="/organismos" class="header-link">Organismos</a>
       <a href="/adjudicatarios" class="header-link">Empresas</a>
       <a href="/datos" class="header-link">Datos</a>
-      <a href="/api/docs" class="header-link" target="_blank" rel="noopener">API ↗</a>
+      <a href={`${apiUrl}/docs`} class="header-link" target="_blank" rel="noopener">API ↗</a>
     </div>
 
   </div>
@@ -89,6 +90,7 @@ import LogoCiclico from './LogoCiclico.astro';
     gap: 4px;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
   }
 
   .header-link {
@@ -103,5 +105,25 @@ import LogoCiclico from './LogoCiclico.astro';
 
   .header-link:hover { background: #f4f4f5; color: var(--color-texto); }
 
+  @media (max-width: 767px) {
+    .header-inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+    }
 
+    .tool-title-name { font-size: 17px; }
+    .tool-title-parent { font-size: 13px; }
+    .tool-title-text { height: 38px; }
+
+    .header-right {
+      gap: 2px;
+    }
+
+    .header-link {
+      font-size: 0.8125rem;
+      padding: 4px 8px;
+    }
+  }
 </style>

@@ -1,0 +1,332 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const REPO = 'https://github.com/lopublico/portalcontratacion';
+const PARQUET_URL = `${REPO}/raw/main/etl/data/processed/contratos.parquet`;
+
+const campos = [
+  { campo: 'id_atom',              tipo: 'string',   descripcion: 'Identificador único del entry en el feed Atom de PLACSP' },
+  { campo: 'tipo',                 tipo: 'string',   descripcion: 'Origen del registro: licitaciones · menores · encargos · consultas' },
+  { campo: 'num_expediente',       tipo: 'string',   descripcion: 'Número de expediente asignado por el órgano contratante' },
+  { campo: 'estado',               tipo: 'string',   descripcion: 'Estado del expediente (PUB, EV, ADJ, RES, ANUL…)' },
+  { campo: 'titulo',               tipo: 'string',   descripcion: 'Título del entry Atom' },
+  { campo: 'objeto',               tipo: 'string',   descripcion: 'Objeto del contrato (campo CODICE)' },
+  { campo: 'descripcion',          tipo: 'string',   descripcion: 'Descripción extendida, frecuentemente nula' },
+  { campo: 'url_placsp',           tipo: 'string',   descripcion: 'Enlace al expediente en PLACSP' },
+  { campo: 'organo_nombre',        tipo: 'string',   descripcion: 'Nombre del órgano de contratación' },
+  { campo: 'organo_nif',           tipo: 'string',   descripcion: 'NIF del órgano, normalizado (sin guiones)' },
+  { campo: 'organo_id_plataforma', tipo: 'string',   descripcion: 'ID interno de PLACSP para el órgano' },
+  { campo: 'organo_dir3',          tipo: 'string',   descripcion: 'Código DIR3 del órgano, cuando está disponible' },
+  { campo: 'organo_tipo',          tipo: 'string',   descripcion: 'Tipo de entidad contratante (código CODICE)' },
+  { campo: 'organo_ciudad',        tipo: 'string',   descripcion: 'Ciudad del órgano contratante' },
+  { campo: 'organo_jerarquia',     tipo: 'string[]', descripcion: 'Cadena jerárquica de organismos padre, de más cercano a más lejano' },
+  { campo: 'tipo_contrato',        tipo: 'string',   descripcion: 'Código CODICE: 1 Obras · 2 Servicios · 3 Suministros · 4-5 Concesiones' },
+  { campo: 'tipo_procedimiento',   tipo: 'string',   descripcion: 'Código de procedimiento de adjudicación (1 abierto · 2 restringido…)' },
+  { campo: 'codigos_cpv',          tipo: 'string[]', descripcion: 'Lista de códigos CPV del contrato; puede contener varios' },
+  { campo: 'lugar_ejecucion',      tipo: 'string',   descripcion: 'Provincia o comunidad autónoma de ejecución' },
+  { campo: 'duracion_valor',       tipo: 'float',    descripcion: 'Duración numérica del contrato' },
+  { campo: 'duracion_unidad',      tipo: 'string',   descripcion: 'Unidad de duración (ANN = años, MON = meses, DAY = días)' },
+  { campo: 'presupuesto_sin_iva',          tipo: 'float', descripcion: 'Presupuesto base de licitación sin IVA, en euros' },
+  { campo: 'presupuesto_con_iva',          tipo: 'float', descripcion: 'Presupuesto base de licitación con IVA, en euros' },
+  { campo: 'valor_estimado',               tipo: 'float', descripcion: 'Valor estimado del contrato (incluye prórrogas)' },
+  { campo: 'importe_adjudicacion_sin_iva', tipo: 'float', descripcion: 'Importe de adjudicación sin IVA, en euros' },
+  { campo: 'importe_adjudicacion_con_iva', tipo: 'float', descripcion: 'Importe de adjudicación con IVA, en euros' },
+  { campo: 'importe',                      tipo: 'float', descripcion: 'Importe genérico usado en encargos y contratos menores' },
+  { campo: 'adjudicatario_nombre', tipo: 'string',  descripcion: 'Razón social del adjudicatario' },
+  { campo: 'adjudicatario_nif',    tipo: 'string',  descripcion: 'NIF/CIF del adjudicatario, normalizado' },
+  { campo: 'adjudicatario_id',     tipo: 'string',  descripcion: 'Identificador del adjudicatario (NIF si disponible, otro esquema si no)' },
+  { campo: 'adjudicado_pyme',      tipo: 'boolean', descripcion: 'Indica si el adjudicatario declaró ser PYME' },
+  { campo: 'num_ofertas_recibidas',tipo: 'integer', descripcion: 'Número de ofertas recibidas en el procedimiento' },
+  { campo: 'fecha_publicacion',    tipo: 'string',  descripcion: 'Fecha de publicación del anuncio (YYYY-MM-DD)' },
+  { campo: 'fecha_adjudicacion',   tipo: 'string',  descripcion: 'Fecha de adjudicación (YYYY-MM-DD)' },
+  { campo: 'fecha_formalizacion',  tipo: 'string',  descripcion: 'Fecha de formalización del contrato (YYYY-MM-DD)' },
+  { campo: 'fecha_actualizacion',  tipo: 'string',  descripcion: 'Fecha de última actualización del entry en el feed Atom' },
+  { campo: 'medio_propio_nombre',  tipo: 'string',  descripcion: 'Nombre del medio propio instrumental, cuando aplica' },
+  { campo: 'resultado_codigo',     tipo: 'string',  descripcion: 'Código de resultado de la licitación (ADJ, DESIERTA…)' },
+];
+---
+
+<Layout titulo="Datos" descripcion="Metodología, esquema y descarga del dataset de contratación pública española.">
+  <div class="pagina-cabecera">
+    <h1>Datos</h1>
+    <p>Metodología, esquema del dataset y archivo de descarga.</p>
+  </div>
+
+  <div class="datos-layout">
+
+    <section>
+      <h2>Cómo se construye el dataset</h2>
+      <div class="metodo-grid">
+
+        <div class="metodo-bloque">
+          <span class="metodo-num">1</span>
+          <div>
+            <h3>Origen</h3>
+            <p>
+              La Plataforma de Contratación del Sector Público (PLACSP) publica los datos
+              a través de feeds Atom organizados por tipo de expediente, año y mes. Cada
+              archivo contiene los registros del período en formato XML siguiendo el estándar
+              CODICE, la adaptación española de UBL para contratación pública. El ETL
+              descarga todos los archivos disponibles desde 2012 y extrae los campos
+              relevantes de cada elemento XML.
+            </p>
+          </div>
+        </div>
+
+        <div class="metodo-bloque">
+          <span class="metodo-num">2</span>
+          <div>
+            <h3>Deduplicación</h3>
+            <p>
+              PLACSP solapa sus archivos de forma deliberada: el archivo de diciembre de un
+              año incluye registros que también aparecen en los archivos anteriores. Sin
+              deduplicación el dataset tendría en torno al 2–3% de registros repetidos.
+              El proceso se hace en dos pasos: primero por <code>atom:id</code> —eliminando
+              duplicados dentro del mismo año— y después por expediente, conservando
+              siempre el registro con la fecha de actualización más reciente.
+            </p>
+          </div>
+        </div>
+
+        <div class="metodo-bloque">
+          <span class="metodo-num">3</span>
+          <div>
+            <h3>Dataset resultante</h3>
+            <p>
+              Tras el procesamiento el dataset contiene algo más de 600.000 registros que
+              cubren el período 2012–2026. La cobertura respecto al total publicado por
+              PLACSP es de aproximadamente el 99,5%; la diferencia corresponde a registros
+              con XML malformado que el parser descarta. El 2,4% de duplicados identificados
+              queda eliminado tras los dos pasos.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section>
+      <h2>Descarga</h2>
+      <div class="descarga-tarjeta">
+        <div class="descarga-izq">
+          <div class="descarga-cabecera">
+            <span class="descarga-formato">Parquet</span>
+            <span class="descarga-tamanio">~814 MB</span>
+          </div>
+          <p>
+            Dataset completo en formato Apache Parquet. Compatible con DuckDB, pandas,
+            Polars y cualquier herramienta que soporte el estándar columnar. Incluye los
+            cuatro tipos de expediente: licitaciones, contratos menores, encargos y
+            consultas preliminares.
+          </p>
+          <a href={PARQUET_URL} class="boton boton-primario descarga-boton" download>
+            Descargar contratos.parquet
+          </a>
+        </div>
+        <div class="descarga-der">
+          <p class="descarga-ejemplo-label">Ejemplo de uso con DuckDB</p>
+          <pre class="descarga-codigo"><code>{`-- número de contratos por tipo
+SELECT tipo, COUNT(*) AS n
+FROM 'contratos.parquet'
+GROUP BY tipo
+ORDER BY n DESC;`}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Esquema de campos</h2>
+      <p class="seccion-desc">
+        El parquet contiene los siguientes campos. Los de tipo <code>string[]</code> se
+        almacenan como listas Parquet (LIST de STRING). Los campos de importe están en
+        euros sin IVA salvo que el nombre indique lo contrario.
+      </p>
+      <div class="tabla-contenedor">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campos.map(c => (
+              <tr>
+                <td class="mono">{c.campo}</td>
+                <td><span class="tipo-chip">{c.tipo}</span></td>
+                <td>{c.descripcion}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</Layout>
+
+<style>
+  .pagina-cabecera { margin-bottom: 1.75rem; }
+
+  .datos-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  .datos-layout h2 { margin-bottom: 1.25rem; }
+
+  /* Metodología */
+  .metodo-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--color-borde);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .metodo-bloque {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--color-borde);
+  }
+  .metodo-bloque:last-child { border-bottom: none; }
+
+  .metodo-num {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--color-fondo);
+    background: var(--color-texto);
+    min-width: 20px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  .metodo-bloque h3 {
+    font-size: var(--texto-base);
+    font-weight: 600;
+    color: var(--color-texto);
+    margin-bottom: 0.4rem;
+  }
+
+  .metodo-bloque p {
+    font-size: var(--texto-sm);
+    line-height: 1.65;
+  }
+
+  .metodo-bloque code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.8em;
+    background: var(--color-fondo-suave);
+    border: 1px solid var(--color-borde);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--color-texto);
+  }
+
+  /* Descarga */
+  .descarga-tarjeta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--color-borde);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .descarga-izq {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    border-right: 1px solid var(--color-borde);
+  }
+
+  .descarga-der {
+    padding: 1.5rem;
+    background: var(--color-fondo-suave);
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .descarga-cabecera {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .descarga-formato {
+    font-size: var(--texto-lg);
+    font-weight: 700;
+    color: var(--color-texto);
+    letter-spacing: -0.01em;
+  }
+
+  .descarga-tamanio {
+    font-size: var(--texto-sm);
+    color: var(--color-texto-suave);
+  }
+
+  .descarga-izq p {
+    font-size: var(--texto-sm);
+    line-height: 1.6;
+  }
+
+  .descarga-boton {
+    align-self: flex-start;
+    text-decoration: none;
+  }
+
+  .descarga-ejemplo-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    color: var(--color-texto-suave);
+  }
+
+  .descarga-codigo {
+    background: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    border-radius: 6px;
+    padding: 0.875rem 1rem;
+    margin: 0;
+    overflow-x: auto;
+  }
+
+  .descarga-codigo code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.8125rem;
+    color: var(--color-texto);
+    line-height: 1.6;
+  }
+
+  /* Esquema */
+  .seccion-desc {
+    margin-bottom: 1rem;
+    font-size: var(--texto-sm);
+    line-height: 1.6;
+  }
+
+  .seccion-desc code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.8em;
+    background: var(--color-fondo-suave);
+    border: 1px solid var(--color-borde);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--color-texto);
+  }
+
+  .tabla td:first-child { white-space: nowrap; }
+</style>

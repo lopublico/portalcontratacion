@@ -1,0 +1,17 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdjudicatariosTabla from '../../components/AdjudicatariosTabla';
+---
+
+<Layout titulo="Empresas adjudicatarias">
+  <div class="pagina-cabecera">
+    <h1>Empresas adjudicatarias</h1>
+    <p>Empresas y entidades que han recibido contratos públicos publicados en PLACSP.</p>
+  </div>
+
+  <AdjudicatariosTabla client:load />
+</Layout>
+
+<style>
+  .pagina-cabecera { margin-bottom: 1.75rem; }
+</style>

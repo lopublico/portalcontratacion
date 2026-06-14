@@ -3,12 +3,34 @@
   --color-texto-suave: #6b7280;
   --color-borde: #e5e7eb;
   --color-fondo: #ffffff;
+  --color-fondo-suave: #f9fafb;
 
   --texto-sm: 0.875rem;
   --texto-base: 1rem;
   --texto-lg: 1.125rem;
-  --texto-xl: 1.25rem;
   --texto-2xl: 1.5rem;
+
+  /* shadcn — el config de Tailwind las mapea a clases como border-border, text-muted-foreground... */
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 5.9% 10%;
+  --radius: 0.5rem;
 }
 
 *, *::before, *::after {
@@ -33,10 +55,10 @@ body {
 
 main {
   width: 100%;
-  max-width: 1152px;
+  max-width: 1320px;
   flex: 1;
   margin: 0 auto;
-  padding: 1.5rem 2rem;
+  padding: 16px 48px;
 }
 
 a { color: inherit; }
@@ -48,6 +70,259 @@ h1 {
   margin-bottom: 0.5rem;
 }
 
-p {
+h2 {
+  font-size: var(--texto-lg);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+p { color: var(--color-texto-suave); }
+
+/* ── KPI ── */
+
+.kpi-rejilla {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.kpi-tarjeta {
+  border: 1px solid var(--color-borde);
+  padding: 1.25rem;
+  border-radius: 8px;
+}
+
+.kpi-etiqueta {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--color-texto-suave);
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.kpi-valor {
+  display: block;
+  font-size: var(--texto-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-texto);
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  color: var(--color-texto-suave);
+  display: block;
+  font-size: var(--texto-sm);
+  margin-top: 0.3rem;
+}
+
+/* ── Tarjeta ── */
+
+.tarjeta {
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+/* ── Sección ── */
+
+.seccion-titulo {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-texto-suave);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* ── Tablas ── */
+
+.tabla-contenedor {
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--texto-sm);
+}
+
+.tabla thead th {
+  background: var(--color-fondo-suave);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-texto-suave);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-borde);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tabla thead th.num,
+.tabla td.num {
+  text-align: right;
+}
+
+.tabla thead th:hover { color: var(--color-texto); }
+
+.tabla tbody tr {
+  border-bottom: 1px solid var(--color-borde);
+  transition: background 0.08s;
+}
+.tabla tbody tr:last-child { border-bottom: none; }
+.tabla tbody tr:hover { background: var(--color-fondo-suave); }
+
+.tabla td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: middle;
+}
+
+.tabla td.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* ── Chips ── */
+
+.tipo-chip {
+  font-size: 0.6875rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f4f4f5;
+  color: var(--color-texto-suave);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ── Botones ── */
+
+.boton {
+  font-size: var(--texto-sm);
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--color-borde);
+  background: var(--color-fondo);
+  color: var(--color-texto-suave);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.boton:hover { background: var(--color-fondo-suave); color: var(--color-texto); }
+
+.boton-primario {
+  background: var(--color-texto);
+  color: var(--color-fondo);
+  border-color: var(--color-texto);
+}
+.boton-primario:hover { opacity: 0.88; }
+
+/* ── Rank bar ── */
+
+.barra-contenedor {
+  height: 3px;
+  background: var(--color-borde);
+  border-radius: 2px;
+  margin-top: 5px;
+}
+
+.barra-relleno {
+  height: 100%;
+  background: var(--color-texto);
+  border-radius: 2px;
+}
+
+/* ── Rejillas ── */
+
+.rejilla-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+/* ── Paginación ── */
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+/* ── Perfil ── */
+
+.perfil-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--color-texto);
+  color: var(--color-fondo);
+  font-size: var(--texto-lg);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.perfil-chips {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+/* ── Rank list ── */
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.rank-nombre {
+  font-size: var(--texto-sm);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--color-texto);
+}
+.rank-nombre:hover { text-decoration: underline; }
+
+.rank-valor {
+  font-size: 0.8125rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+}
+
+/* ── Buscador ── */
+
+.buscador-sidebar {
+  width: 196px;
+  flex-shrink: 0;
+}
+
+/* ── Gráficas ── */
+
+.grafica-contenedor { height: 220px; position: relative; }
+
+
+  @media (max-width: 767px) {
+
+  main{
+    padding: 12px 16px;
+  }
 }

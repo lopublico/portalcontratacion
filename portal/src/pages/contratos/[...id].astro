@@ -1,0 +1,18 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import ContratoFicha from '../../components/ContratoFicha';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/contratos');
+const decodedId = decodeURIComponent(id);
+---
+
+<Layout titulo="Contrato">
+  <div style="margin-bottom: 0.75rem;">
+    <a href="/contratos" style="font-size: var(--texto-sm); color: var(--color-texto-suave); text-decoration: none;">
+      ← Contratos
+    </a>
+  </div>
+  <ContratoFicha client:load id={decodedId} />
+</Layout>

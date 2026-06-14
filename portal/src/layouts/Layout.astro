@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Head from '../components/Head.astro';
 import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
 
 interface Props {
   titulo?: string;
@@ -18,10 +19,15 @@ const { titulo, descripcion, imagen } = Astro.props;
     <Head titulo={titulo} descripcion={descripcion} imagen={imagen} />
   </head>
   <body>
+    <div class="md:hidden bg-black text-white text-xs text-center px-4 py-2.5 leading-snug">
+      Esta plataforma maneja tablas de datos extensas y está optimizada para pantallas de escritorio.
+    </div>
     <Nav />
     <main>
       <slot />
     </main>
+
+    <Footer />
 
     <script>
       function mezclarLogos(id: string) {

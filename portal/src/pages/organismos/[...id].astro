@@ -1,0 +1,18 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import PerfilEntidad from '../../components/PerfilEntidad';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/organismos');
+const decodedId = decodeURIComponent(id);
+---
+
+<Layout titulo="Organismo">
+  <div style="margin-bottom: 0.75rem;">
+    <a href="/organismos" style="font-size: var(--texto-sm); color: var(--color-texto-suave); text-decoration: none;">
+      ← Organismos
+    </a>
+  </div>
+  <PerfilEntidad client:load tipo="organismo" id={decodedId} />
+</Layout>
