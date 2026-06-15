@@ -73,8 +73,10 @@ def listar_contratos(
     params: list = []
 
     if tipo:
-        condiciones.append("tipo = ?")
-        params.append(tipo)
+        vals = [v.strip() for v in tipo.split(',') if v.strip()]
+        placeholders = ','.join(['?' for _ in vals])
+        condiciones.append(f"tipo IN ({placeholders})")
+        params.extend(vals)
     if q:
         condiciones.append("(titulo ILIKE ? OR objeto ILIKE ?)")
         params += [f"%{q}%", f"%{q}%"]
@@ -92,8 +94,10 @@ def listar_contratos(
         params.append(f"%{adjudicatario_q}%")
         params.append(adjudicatario_q)
     if tipo_contrato:
-        condiciones.append("tipo_contrato = ?")
-        params.append(tipo_contrato)
+        vals = [v.strip() for v in tipo_contrato.split(',') if v.strip()]
+        placeholders = ','.join(['?' for _ in vals])
+        condiciones.append(f"tipo_contrato IN ({placeholders})")
+        params.extend(vals)
     if anno:
         condiciones.append("YEAR(TRY_CAST(fecha_adjudicacion AS DATE)) = ?")
         params.append(anno)
@@ -101,8 +105,10 @@ def listar_contratos(
         condiciones.append("list_contains(codigos_cpv, ?)")
         params.append(cpv)
     if estado:
-        condiciones.append("estado = ?")
-        params.append(estado)
+        vals = [v.strip() for v in estado.split(',') if v.strip()]
+        placeholders = ','.join(['?' for _ in vals])
+        condiciones.append(f"estado IN ({placeholders})")
+        params.extend(vals)
     if pyme is not None:
         condiciones.append("adjudicado_pyme = ?")
         params.append(pyme)
@@ -119,8 +125,10 @@ def listar_contratos(
         condiciones.append("TRY_CAST(fecha_adjudicacion AS DATE) <= TRY_CAST(? AS DATE)")
         params.append(fecha_hasta)
     if tipo_procedimiento:
-        condiciones.append("tipo_procedimiento = ?")
-        params.append(tipo_procedimiento)
+        vals = [v.strip() for v in tipo_procedimiento.split(',') if v.strip()]
+        placeholders = ','.join(['?' for _ in vals])
+        condiciones.append(f"tipo_procedimiento IN ({placeholders})")
+        params.extend(vals)
 
     where = ("WHERE " + " AND ".join(condiciones)) if condiciones else ""
     order_sql = _ORDENES_SQL.get(orden or "fecha_desc", _ORDENES_SQL["fecha_desc"])

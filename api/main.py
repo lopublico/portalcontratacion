@@ -97,8 +97,10 @@ def _verificar_datos():
 
 
 def _validar_tipo(tipo: Optional[str]):
-    if tipo and tipo not in TIPOS_VALIDOS:
-        raise HTTPException(status_code=400, detail=f"Tipo no valido. Usa: {', '.join(sorted(TIPOS_VALIDOS))}")
+    if tipo:
+        for t in tipo.split(','):
+            if t.strip() and t.strip() not in TIPOS_VALIDOS:
+                raise HTTPException(status_code=400, detail=f"Tipo no valido. Usa: {', '.join(sorted(TIPOS_VALIDOS))}")
 
 
 # --- info ---
@@ -331,8 +333,10 @@ def listar_contratos(
     _verificar_datos()
     _validar_tipo(tipo)
 
-    if estado and estado not in ESTADOS_VALIDOS:
-        raise HTTPException(status_code=400, detail=f"Estado no valido. Usa: {', '.join(sorted(ESTADOS_VALIDOS))}")
+    if estado:
+        for e in estado.split(','):
+            if e.strip() and e.strip() not in ESTADOS_VALIDOS:
+                raise HTTPException(status_code=400, detail=f"Estado no valido. Usa: {', '.join(sorted(ESTADOS_VALIDOS))}")
     if orden and orden not in _ORDENES_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Orden no valido")
 
